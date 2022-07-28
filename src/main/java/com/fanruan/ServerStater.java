@@ -4,6 +4,7 @@ import com.corundumstudio.socketio.SocketConfig;
 import com.corundumstudio.socketio.SocketIOServer;
 import com.corundumstudio.socketio.Transport;
 import com.fanruan.cache.ClientCache;
+import com.fanruan.cache.ClientState;
 import com.fanruan.exception.ParamException;
 import com.fanruan.pojo.MyDataSource;
 import com.fanruan.pojo.message.SimpleMessage;
@@ -22,7 +23,7 @@ import java.util.Properties;
 public class ServerStater{
     protected static final Logger logger = LogManager.getLogger();
 
-    private static final Gson gson = new Gson();
+    public static final Gson gson = new Gson();
 
     public static SocketIOServer server;
 
@@ -34,7 +35,7 @@ public class ServerStater{
         bootStrap();
     }
 
-    public void bootStrap(){
+    private void bootStrap(){
         logger.debug("配置事件监听");
         server.addConnectListener(client -> {
             String agentID = client.getHandshakeData().getSingleUrlParam("agentID");
@@ -48,7 +49,7 @@ public class ServerStater{
             cache.saveClient(agentID, client);
 
             // 设置缓存状态为未注册
-            cache.getStateByID(agentID).setState(ClientCache.ClientState.STATE_UNREGISTER);
+            cache.getStateByID(agentID).setState(ClientState.STATE_UNREGISTER);
             logger.info("agentID " + agentID + " 连接建立成功");
             logger.info("请求代理注册数据源");
             client.sendEvent("ClientReceive", new SimpleMessage("Ask for DB registration"));
@@ -86,20 +87,20 @@ public class ServerStater{
         server.addEventListener("DataSourceReady", String.class, ((client, data, ackRequest) -> {
             String agentID = client.getHandshakeData().getSingleUrlParam("agentID");
             // 数据源注册完成设置连接状态为完成
-            cache.getStateByID(agentID).setState(ClientCache.ClientState.STATE_COMPLETE);
+            cache.getStateByID(agentID).setState(ClientState.STATE_COMPLETE);
             logger.info("DataSourceReady: " + data);
         }));
 
         server.addEventListener("ReturnData", String.class, ((client, data, ackRequest) -> {
             String agentID = client.getHandshakeData().getSingleUrlParam("agentID");
-            logger.debug(data);
+            logger.info(data);
             // 数据源注册完成设置连接状态为完成
         }));
 
         server.start();
     }
 
-    public void registerClient(){
+    private void registerClient(){
         cache = new ClientCache();
         MyDataSource dataSource = new MyDataSource(
                 "mysql",
@@ -110,7 +111,7 @@ public class ServerStater{
         cache.init("1001", dataSource);
     }
 
-    public void loadConfig() throws IOException {
+    private void loadConfig() throws IOException {
         logger.debug("加载配置");
         SocketConfig socketConfig = new SocketConfig();
         // 是否开启 Nagle 算法

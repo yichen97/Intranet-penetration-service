@@ -1,4 +1,6 @@
 import com.fanruan.ServerStater;
+import com.fanruan.cache.ClientCache;
+import com.fanruan.cache.ClientState;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.LogManager;
@@ -24,13 +26,16 @@ public class Test {
             @SneakyThrows
             @Override
             public void run() {
-                while(serverStater.cache.getClientByID(agentID) == null){
-                    logger.info("等待与 Agent: " + agentID + "建立连接");
+                while(serverStater.cache.getClientByID("1001") == null){
+                    Thread.sleep(1000);
+                }
+                while(serverStater.cache.getStateByID("1001").getState() != ClientState.STATE_COMPLETE){
                     Thread.sleep(1000);
                 }
                 Connection conn = DriverManager.getConnection("1001", new Properties());
                 Statement st = conn.createStatement();
                 st.executeQuery("select * from `student`");
+
             }
         }).start();
         System.in.read();
