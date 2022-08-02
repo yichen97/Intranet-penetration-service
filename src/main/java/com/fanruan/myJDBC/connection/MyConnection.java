@@ -3,6 +3,7 @@ package com.fanruan.myJDBC.connection;
 import com.corundumstudio.socketio.SocketIOClient;
 import com.fanruan.myJDBC.MyDataBaseMetaData;
 import com.fanruan.myJDBC.statement.MyStatement;
+import com.fanruan.proxy.ProxyFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,14 +20,19 @@ public class MyConnection implements Connection {
     private SocketIOClient client;
     private boolean autoCommit = true;
 
+    public MyConnection(){
+    }
 
-    public MyConnection(SocketIOClient client) throws JsonProcessingException {
+    public void setClient(SocketIOClient client){
         this.client = client;
     }
 
+
     @Override
     public Statement createStatement() throws SQLException {
-        return (Statement) new MyStatement(client);
+        MyStatement st = (MyStatement) ProxyFactory.getNotifyProxy(MyStatement.class, this.client);
+        st.setClient(client);
+        return (Statement) st;
     }
 
     @Override

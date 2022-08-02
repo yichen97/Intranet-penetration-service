@@ -1,8 +1,8 @@
 package com.fanruan.myJDBC.statement;
 
 import com.corundumstudio.socketio.SocketIOClient;
-import com.fanruan.pojo.message.MessageSQL;
-import com.google.gson.Gson;
+import com.fanruan.myJDBC.resultSet.MyResultSet;
+import com.fanruan.proxy.ProxyFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -12,33 +12,21 @@ public class MyStatement implements Statement {
     protected static final Logger logger = LogManager.getLogger();
 
     private SocketIOClient client;
-    private Connection connection;
     private String sql;
 
 
-    public MyStatement(SocketIOClient client) {
-        this.client = client;
-    }
+    public MyStatement() {}
 
-    public ResultSet socketQuery(String sql){
-        Gson gson = new Gson();
-        MessageSQL message = new MessageSQL("mysql", sql);
-        String query = gson.toJson(message);
-        client.sendEvent("QueryEvent", query);
-        logger.info("发送查询事件，参数：" + query);
-        return null;
+    public void setClient(SocketIOClient client){
+        this.client = client;
     }
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         if(isClosed()) throw new SQLException("This Statement is closed.");
-        try{
-            ResultSet resultSet = socketQuery(sql);
-            return resultSet;
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        return null;
+        MyResultSet rs = (MyResultSet) ProxyFactory.getFetchProxy(MyResultSet.class, client);
+        rs.setClient(client);
+        return (ResultSet) rs;
     }
 
     @Override

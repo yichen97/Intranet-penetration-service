@@ -5,10 +5,11 @@ import com.corundumstudio.socketio.SocketIOClient;
 import com.fanruan.ServerStater;
 import com.fanruan.cache.ClientCache;
 import com.fanruan.myJDBC.connection.MyConnection;
+import com.fanruan.proxy.ProxyFactory;
 import lombok.SneakyThrows;
 
 
-
+import javax.annotation.Resource;
 import java.sql.*;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -16,16 +17,13 @@ import java.util.logging.Logger;
 
 public class MyDriver implements Driver {
 
-    private ClientCache cache = ServerStater.cache;
-
-    SocketIOClient client = null;
     static public final int DRIVER_VERSION_MAJOR = 1;
     static public final int DRIVER_VERSION_MINOR = 1;
 
     //依靠静态函数块注册驱动
     static{
         try {
-            DriverManager.registerDriver(new MyDriver());
+            DriverManager.registerDriver((MyDriver) ProxyFactory.getNotifyProxy(MyDriver.class, null));
         } catch (Exception e) {
             throw new RuntimeException("Can't register driver");
         }
@@ -33,10 +31,13 @@ public class MyDriver implements Driver {
 
     @SneakyThrows
     @Override
-    public Connection connect(String AgentID, Properties info) throws SQLException {
-        this.client = cache.getClientByID(AgentID);
-        MyConnection conn = new MyConnection(client);
-        return (Connection) conn;
+    public Connection connect(String url, Properties info) throws SQLException {
+        String agentID = info.getProperty("agentID");
+        String dbName = url.split(":")[1];
+        SocketIOClient client = ServerStater.cache.getClient(agentID, dbName);
+        MyConnection myConn = (MyConnection) ProxyFactory.getNotifyProxy(MyConnection.class, client);
+        myConn.setClient(client);
+        return myConn;
     }
 
     // URL的正确性交给Agent验证

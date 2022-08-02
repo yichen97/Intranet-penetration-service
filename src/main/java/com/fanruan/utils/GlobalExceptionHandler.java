@@ -17,7 +17,6 @@ public class GlobalExceptionHandler {
     }
 
     static public void sendException(String agentID, String errMsg){
-        SocketIOClient client = cache.getClientByID(agentID);
-        client.sendEvent("ErrorMessage", errMsg);
+
     }
 }

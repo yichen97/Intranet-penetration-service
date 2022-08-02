@@ -1,8 +1,8 @@
 import com.fanruan.ServerStater;
-import com.fanruan.cache.ClientCache;
-import com.fanruan.cache.ClientState;
+
+
+import com.fanruan.utils.DBProperties;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,7 +18,15 @@ public class Test {
 
     public static void main(String[] args) throws IOException, ClassNotFoundException {
 
-        ServerStater serverStater = new ServerStater();
+        String[] DBs = new String[]{
+                DBProperties.MYSQL,
+//                DBProperties.POSTGRESQL,
+//                DBProperties.SQLSERVER,
+//                DBProperties.DB2,
+//                DBProperties.ORACLE
+        };
+        ServerStater serverStater = new ServerStater(DBs);
+
         String agentID = "1001";
         Class.forName("com.fanruan.myJDBC.driver.MyDriver");
 
@@ -26,19 +34,19 @@ public class Test {
             @SneakyThrows
             @Override
             public void run() {
-                while(serverStater.cache.getClientByID("1001") == null){
+                while(serverStater.cache.getClient("1001", "/mysql") == null){
                     Thread.sleep(1000);
                 }
-                while(serverStater.cache.getStateByID("1001").getState() != ClientState.STATE_COMPLETE){
-                    Thread.sleep(1000);
-                }
-                Connection conn = DriverManager.getConnection("1001", new Properties());
+                Properties info = new Properties();
+                info.setProperty("user", "root");
+                info.setProperty("password", "850656");
+                info.setProperty("agentID", "1001");
+
+                Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/test", info);
                 Statement st = conn.createStatement();
-                st.executeQuery("select * from `student`");
+//                st.executeQuery("select * from `student`");
 
             }
         }).start();
-        System.in.read();
-
     }
 }
