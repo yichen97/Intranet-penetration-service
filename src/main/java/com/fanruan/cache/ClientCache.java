@@ -12,54 +12,48 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientCache {
 
     //    缓存代理客户端信息
-    private static Map<String, ClientWrapper> map = new ConcurrentHashMap<>();
+    private static Map<String, Map<String, ClientWrapper>> agentMap = new ConcurrentHashMap<>();
 
-    //  before service established link with agent, service should set cache for agent you want to accept.
-//    public static void init(String agentID, MyDataSource dataSource){
-//        map.put(agentID, new ClientWrapper(null, null, dataSource, null));
-//    }
     /**
      * 缓存代理通道
      * @param agentID 代理名称
      * @param client 代理通道
      */
     public static void saveClient(String agentID, String dbName, SocketIOClient client){
-        ClientWrapper wrapper = map.getOrDefault(agentID, new ClientWrapper());
-        wrapper.setState(new ClientState());
-        wrapper.saveClient(dbName, client);
-        map.put(agentID, wrapper);
-    }
-
-    /**
-     * 删除缓存的代理
-     * @param agentID 代理名称
-     */
-    public static void deleteAgentByID(String agentID){
-        if(map.containsKey(agentID)) {
-            map.get(agentID);
+        Map<String, ClientWrapper> nameSpaceMap = agentMap.get(agentID);
+        if(nameSpaceMap == null){
+            nameSpaceMap = new ConcurrentHashMap<>();
+            agentMap.put(agentID, nameSpaceMap);
         }
+        ClientWrapper wrapper = nameSpaceMap.get(dbName);
+        if(wrapper == null){
+            wrapper = new ClientWrapper();
+            nameSpaceMap.put(dbName, wrapper);
+        }
+        wrapper.setClient(client);
     }
-
 
     public static SocketIOClient getClient(String agentID, String dbName){
-        // 使用异步任务等待连接
-        if(map.containsKey(agentID)) {
-            return map.get(agentID).getClient(dbName);
-        }else{
-            return null;
-        }
+        Map<String, ClientWrapper> map = agentMap.get(agentID);
+        if(map == null) return null;
+        ClientWrapper wrapper = map.get(dbName);
+        if(wrapper == null) return null;
+        return wrapper.getClient();
     }
 
-    public static ClientState getStateByID(String agentID){
-        if(map.containsKey(agentID)) {
-            return map.get(agentID).getState();
-        }else{
-            return null;
-        }
+    public static void deleteClient(String agentID, String dbName){
+        Map<String, ClientWrapper> map = agentMap.get(agentID);
+        if(map == null) return;
+        map.remove(dbName);
+
     }
 
 
-    public static ClientWrapper getClientWrapperByID(String agentID){
-        return map.getOrDefault(agentID, new ClientWrapper());
+    public static ClientWrapper getClientWrapper(String agentID, String dbName){
+        Map<String, ClientWrapper> map = agentMap.get(agentID);
+        if(map == null) throw new RuntimeException("wrong agent ID");
+        ClientWrapper wrapper = map.get(dbName);
+        if(wrapper == null) throw new RuntimeException("wrong dbName");
+        return wrapper;
     }
 }

@@ -7,6 +7,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class RpcRequest<T> {
     private boolean reply;
+    private String ID;
     private Class<T> ServiceClass;
     private String MethodName;
     private Object[] args;

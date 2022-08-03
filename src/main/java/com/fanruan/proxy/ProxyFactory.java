@@ -1,14 +1,14 @@
 package com.fanruan.proxy;
 
 
-import com.corundumstudio.socketio.SocketIOClient;
-import com.fanruan.proxy.interceptor.FetchInterceptor;
-import com.fanruan.proxy.interceptor.NotifyInterceptor;
+import com.fanruan.proxy.interceptor.Interceptor;
 import net.sf.cglib.proxy.Enhancer;
+
+import java.util.Properties;
 
 public class ProxyFactory {
 
-    public static Object getNotifyProxy(Class<?> clazz, SocketIOClient client){
+    public static Object getProxy(Class<?> clazz, Properties info){
         // 创建动态代理增强类
         final Enhancer enhancer = new Enhancer();
         // 设置类加载器
@@ -16,20 +16,7 @@ public class ProxyFactory {
         // 设置父类
         enhancer.setSuperclass(clazz);
         // 设置被代理类
-        enhancer.setCallback(new NotifyInterceptor(clazz, client));
-        // 创建代理类
-        return enhancer.create();
-    }
-
-    public static Object getFetchProxy(Class<?> clazz, SocketIOClient client){
-        // 创建动态代理增强类
-        final Enhancer enhancer = new Enhancer();
-        // 设置类加载器
-        enhancer.setClassLoader(clazz.getClassLoader());
-        // 设置父类
-        enhancer.setSuperclass(clazz);
-        // 设置被代理类
-        enhancer.setCallback(new FetchInterceptor(clazz, client));
+        enhancer.setCallback(new Interceptor(clazz, info));
         // 创建代理类
         return enhancer.create();
     }

@@ -23,7 +23,7 @@ public class MyDriver implements Driver {
     //依靠静态函数块注册驱动
     static{
         try {
-            DriverManager.registerDriver((MyDriver) ProxyFactory.getNotifyProxy(MyDriver.class, null));
+            DriverManager.registerDriver((MyDriver) ProxyFactory.getProxy(MyDriver.class, null));
         } catch (Exception e) {
             throw new RuntimeException("Can't register driver");
         }
@@ -33,10 +33,14 @@ public class MyDriver implements Driver {
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
         String agentID = info.getProperty("agentID");
-        String dbName = url.split(":")[1];
-        SocketIOClient client = ServerStater.cache.getClient(agentID, dbName);
-        MyConnection myConn = (MyConnection) ProxyFactory.getNotifyProxy(MyConnection.class, client);
-        myConn.setClient(client);
+        String dbName = info.getProperty("dbName");
+        if(dbName == null){
+            dbName = url.split(":")[1];
+            info.setProperty("dbName", dbName);
+        }
+
+        MyConnection myConn = (MyConnection) ProxyFactory.getProxy(MyConnection.class, info);
+        myConn.setInfo(info);
         return myConn;
     }
 

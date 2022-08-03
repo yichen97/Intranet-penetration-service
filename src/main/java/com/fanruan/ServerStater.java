@@ -6,6 +6,8 @@ import com.corundumstudio.socketio.SocketIOServer;
 import com.corundumstudio.socketio.Transport;
 import com.fanruan.cache.ClientCache;
 import com.fanruan.cache.ClientState;
+import com.fanruan.cache.ClientWrapper;
+import com.fanruan.cache.LockAndCondition;
 import com.fanruan.exception.ParamException;
 import com.fanruan.pojo.MyDataSource;
 import com.fanruan.pojo.message.RpcResponse;
@@ -24,6 +26,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Properties;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ServerStater{
     protected static final Logger logger = LogManager.getLogger();
@@ -56,13 +60,15 @@ public class ServerStater{
         nameSpace.addConnectListener(client -> {
             logger.info(nameSpace.getName() + "- socket connected!");
             String agentID = Commons.getAgentID(client);
+
             if(agentID == null){
                 // 如果连接信息错误，发送异常信息，关闭socket
                 GlobalExceptionHandler.sendException(client, new ParamException(CodeMsg.CLIENT_ID_ERROR));
                 logger.info("连接信息错误：agentID, 连接关闭");
                 client.disconnect();
             }
-            String dbName = client.getNamespace().getName();
+
+            String dbName = Commons.getDBName(client);
             // 缓存连接
             cache.saveClient(agentID, dbName, client);
 
@@ -72,6 +78,23 @@ public class ServerStater{
         nameSpace.addEventListener("RPCResponse", byte[].class, ((client, data, ackRequest) -> {
             RpcResponse rpcResponse = serializer.deserialize(data, RpcResponse.class);
             logger.info("RPCResponse: " + (rpcResponse.getStatus() ? "success" : "fail"));
+
+            String agentID = Commons.getAgentID(client);
+            String dbName = Commons.getDBName(client);
+            ClientWrapper wrapper = ClientCache.getClientWrapper(agentID, dbName);
+            LockAndCondition lac = wrapper.getLockAndCondition(rpcResponse.getID());
+            ReentrantLock lock = lac.getLock();
+            Condition condition = lac.getCondition();
+            try {
+                lock.lock();
+                condition.signal();
+            }catch (Exception e){
+                e.printStackTrace();
+            }finally {
+                lock.unlock();
+            }
+            logger.info("received response message, signaled condition");
+
         }));
 
         // 处理错误事件
@@ -111,31 +134,37 @@ public class ServerStater{
 
         server.addConnectListener(client -> {
             String agentID = Commons.getAgentID(client);
+            String dbName = Commons.getDBName(client);
             if(agentID == null){
                 // 如果连接信息错误，发送异常信息，关闭socket
                 GlobalExceptionHandler.sendException(client, new ParamException(CodeMsg.CLIENT_ID_ERROR));
                 logger.info("连接信息错误：agentID, 连接关闭");
                 client.disconnect();
             }
+            // 缓存连接
+            cache.saveClient(agentID, dbName, client);
         });
 
         // 添加客户端连接监听器
         server.addDisconnectListener(client -> {
             String agentID = Commons.getAgentID(client);
+            String dbName = Commons.getDBName(client);
+
             if(agentID == null){
                 // 如果连接信息错误，发送异常信息，关闭socket
                 GlobalExceptionHandler.sendException(client, new ParamException(CodeMsg.CLIENT_ID_ERROR));
                 logger.info("agentID: 连接关闭");
                 client.disconnect();
             }
+
             // 缓存连接
-            cache.deleteAgentByID(agentID);
+            cache.deleteClient(agentID, dbName);
             logger.info("agentID: " + agentID + "连接关闭");
             logger.info("agentId: " + agentID + "连接已删除");
         });
 
         server.addEventListener("message", String.class, ((client, data, ackRequest) -> {
-            logger.info("Error: " + data);
+            logger.info("message: " + data);
         }));
     }
 }

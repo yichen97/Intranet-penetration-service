@@ -1,10 +1,12 @@
 package com.fanruan.myJDBC.connection;
 
+
 import com.corundumstudio.socketio.SocketIOClient;
+import com.fanruan.ServerStater;
 import com.fanruan.myJDBC.MyDataBaseMetaData;
 import com.fanruan.myJDBC.statement.MyStatement;
 import com.fanruan.proxy.ProxyFactory;
-import com.fasterxml.jackson.core.JsonProcessingException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,22 +19,24 @@ import java.util.concurrent.Executor;
 public class MyConnection implements Connection {
     protected static final Logger logger = LogManager.getLogger();
 
-    private SocketIOClient client;
+    private Properties info;
     private boolean autoCommit = true;
+    SocketIOClient client;
 
     public MyConnection(){
     }
 
-    public void setClient(SocketIOClient client){
-        this.client = client;
+    public void setInfo(Properties info){
+        this.info = info;
+        client = ServerStater.cache.getClient(info.getProperty("agentID"), info.getProperty("dbName"));
     }
 
 
     @Override
     public Statement createStatement() throws SQLException {
-        MyStatement st = (MyStatement) ProxyFactory.getNotifyProxy(MyStatement.class, this.client);
-        st.setClient(client);
-        return (Statement) st;
+        MyStatement st = (MyStatement) ProxyFactory.getProxy(MyStatement.class, info);
+        st.setInfo(info);
+        return st;
     }
 
     @Override

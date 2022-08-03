@@ -1,32 +1,31 @@
 package com.fanruan.myJDBC.statement;
 
-import com.corundumstudio.socketio.SocketIOClient;
 import com.fanruan.myJDBC.resultSet.MyResultSet;
 import com.fanruan.proxy.ProxyFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.*;
+import java.util.Properties;
 
 public class MyStatement implements Statement {
     protected static final Logger logger = LogManager.getLogger();
 
-    private SocketIOClient client;
+    private Properties info;
     private String sql;
 
 
     public MyStatement() {}
 
-    public void setClient(SocketIOClient client){
-        this.client = client;
+    public void setInfo(Properties info){
+        this.info = info;
     }
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         if(isClosed()) throw new SQLException("This Statement is closed.");
-        MyResultSet rs = (MyResultSet) ProxyFactory.getFetchProxy(MyResultSet.class, client);
-        rs.setClient(client);
-        return (ResultSet) rs;
+        MyResultSet rs = (MyResultSet) ProxyFactory.getProxy(MyResultSet.class, info);
+        return rs;
     }
 
     @Override

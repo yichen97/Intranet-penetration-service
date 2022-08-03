@@ -7,6 +7,8 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class RpcResponse {
 
+    private String ID;
+
     private Object result;
 
     private Boolean status;

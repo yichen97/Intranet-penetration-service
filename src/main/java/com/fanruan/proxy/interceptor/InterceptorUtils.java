@@ -4,7 +4,7 @@ public class InterceptorUtils {
     private static final String[] EXCLUDED_METHOD_LIST = new String[]{
             "toString",
             "hashCode",
-            "setClient"
+            "setInfo"
     };
 
     public static boolean isInExcludedList(String methodName){

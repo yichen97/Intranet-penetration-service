@@ -28,20 +28,21 @@ public class Test {
         ServerStater serverStater = new ServerStater(DBs);
 
         String agentID = "1001";
-        Class.forName("com.fanruan.myJDBC.driver.MyDriver");
 
         new Thread(new Runnable() {
             @SneakyThrows
             @Override
             public void run() {
-                while(serverStater.cache.getClient("1001", "/mysql") == null){
+                while(serverStater.cache.getClient("1001", "mysql") == null){
                     Thread.sleep(1000);
                 }
                 Properties info = new Properties();
                 info.setProperty("user", "root");
                 info.setProperty("password", "850656");
                 info.setProperty("agentID", "1001");
+                info.setProperty("dbName", "mysql");
 
+                Class.forName("com.fanruan.myJDBC.driver.MyDriver");
                 Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/test", info);
                 Statement st = conn.createStatement();
 //                st.executeQuery("select * from `student`");

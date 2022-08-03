@@ -1,6 +1,7 @@
 package com.fanruan.cache;
 
 import com.corundumstudio.socketio.SocketIOClient;
+import com.fanruan.pojo.message.RpcRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,17 +17,23 @@ import java.util.concurrent.locks.ReentrantLock;
 @NoArgsConstructor
 public class ClientWrapper {
         private ClientState state;
-        private static Map<String, SocketIOClient> socketCache = new ConcurrentHashMap<>();
-        final public ReentrantLock lock = new ReentrantLock();
-        final public Condition condition = lock.newCondition();
+        private SocketIOClient client;
+        private static Map<String, LockAndCondition> lockMap = new ConcurrentHashMap<>();
 
-        public SocketIOClient getClient(String dbName){
-                SocketIOClient client = socketCache.get(dbName);
+
+        public SocketIOClient getClient(){
                 if(client == null) throw new RuntimeException("no such client");
                 return client;
         }
 
-        public void saveClient(String dbName, SocketIOClient client){
-                socketCache.put(dbName, client);
+        public LockAndCondition getLockAndCondition(String messageID){
+                LockAndCondition lac = lockMap.get(messageID);
+                if(lac == null){
+                        ReentrantLock lock = new ReentrantLock();
+                        Condition condition = lock.newCondition();
+                        lac = new LockAndCondition(lock, condition);
+                        lockMap.put(messageID, lac);
+                }
+                return lac;
         }
 }

@@ -1,6 +1,5 @@
 package com.fanruan.myJDBC.resultSet;
 
-import com.corundumstudio.socketio.SocketIOClient;
 
 import java.io.InputStream;
 import java.io.Reader;
@@ -10,12 +9,8 @@ import java.sql.*;
 import java.util.Calendar;
 import java.util.Map;
 
-public class MyResultSet implements ResultSet {
-    private SocketIOClient client;
 
-    public void setClient(SocketIOClient client){
-        this.client = client;
-    }
+public class MyResultSet implements ResultSet {
 
     @Override
     public boolean next() throws SQLException {
