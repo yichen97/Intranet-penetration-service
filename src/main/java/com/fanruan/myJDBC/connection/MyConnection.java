@@ -28,7 +28,7 @@ public class MyConnection implements Connection {
 
     public void setInfo(Properties info){
         this.info = info;
-        client = ServerStater.cache.getClient(info.getProperty("agentID"), info.getProperty("dbName"));
+        client = ServerStater.cache.getClient(info.getProperty("agentID"), info.getProperty("agentDBName"));
     }
 
 

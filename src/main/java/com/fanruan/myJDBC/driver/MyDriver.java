@@ -33,10 +33,10 @@ public class MyDriver implements Driver {
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
         String agentID = info.getProperty("agentID");
-        String dbName = info.getProperty("dbName");
+        String dbName = info.getProperty("agentDBName");
         if(dbName == null){
             dbName = url.split(":")[1];
-            info.setProperty("dbName", dbName);
+            info.setProperty("agentDBName", dbName);
         }
 
         MyConnection myConn = (MyConnection) ProxyFactory.getProxy(MyConnection.class, info);

@@ -5,13 +5,10 @@ import com.corundumstudio.socketio.SocketIONamespace;
 import com.corundumstudio.socketio.SocketIOServer;
 import com.corundumstudio.socketio.Transport;
 import com.fanruan.cache.ClientCache;
-import com.fanruan.cache.ClientState;
 import com.fanruan.cache.ClientWrapper;
 import com.fanruan.cache.LockAndCondition;
 import com.fanruan.exception.ParamException;
-import com.fanruan.pojo.MyDataSource;
 import com.fanruan.pojo.message.RpcResponse;
-import com.fanruan.pojo.message.SimpleMessage;
 import com.fanruan.serializer.KryoSerializer;
 import com.fanruan.serializer.Serializer;
 import com.fanruan.utils.CodeMsg;
@@ -77,7 +74,7 @@ public class ServerStater{
         // rpc响应
         nameSpace.addEventListener("RPCResponse", byte[].class, ((client, data, ackRequest) -> {
             RpcResponse rpcResponse = serializer.deserialize(data, RpcResponse.class);
-            logger.info("RPCResponse: " + (rpcResponse.getStatus() ? "success" : "fail"));
+            logger.debug("RPCResponse: " + (rpcResponse.getStatus() ? "success" : "fail"));
 
             String agentID = Commons.getAgentID(client);
             String dbName = Commons.getDBName(client);
@@ -85,15 +82,19 @@ public class ServerStater{
             LockAndCondition lac = wrapper.getLockAndCondition(rpcResponse.getID());
             ReentrantLock lock = lac.getLock();
             Condition condition = lac.getCondition();
+            // response 到达时，通知正阻塞在LockAndCondition类上的FutureTask线程
+            // 如果response 报文中包含数据，将数据取出
             try {
                 lock.lock();
+                Object resultData = rpcResponse.getResult();
+                if(resultData != null) lac.setResult(resultData);
                 condition.signal();
             }catch (Exception e){
                 e.printStackTrace();
             }finally {
                 lock.unlock();
             }
-            logger.info("received response message, signaled condition");
+            logger.debug("received response message, signaled condition");
 
         }));
 

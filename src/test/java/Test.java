@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Properties;
 
@@ -40,12 +41,18 @@ public class Test {
                 info.setProperty("user", "root");
                 info.setProperty("password", "850656");
                 info.setProperty("agentID", "1001");
-                info.setProperty("dbName", "mysql");
+                info.setProperty("agentDBName", "mysql");
 
                 Class.forName("com.fanruan.myJDBC.driver.MyDriver");
                 Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/test", info);
                 Statement st = conn.createStatement();
-//                st.executeQuery("select * from `student`");
+                ResultSet rs = st.executeQuery("select * from `student`");
+
+                while(rs.next())
+                {
+                    String id=rs.getString(1);
+                    System.out.println(id+" ");
+                }
 
             }
         }).start();

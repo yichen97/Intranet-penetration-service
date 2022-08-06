@@ -13,4 +13,10 @@ import java.util.concurrent.locks.ReentrantLock;
 public class LockAndCondition{
     private ReentrantLock lock;
     private Condition condition;
+    private Object result;
+
+    LockAndCondition(ReentrantLock lock, Condition condition){
+        this.lock = lock;
+        this.condition = condition;
+    }
 }

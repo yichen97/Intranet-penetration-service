@@ -12,7 +12,6 @@ public class MyStatement implements Statement {
     protected static final Logger logger = LogManager.getLogger();
 
     private Properties info;
-    private String sql;
 
 
     public MyStatement() {}
@@ -25,6 +24,7 @@ public class MyStatement implements Statement {
     public ResultSet executeQuery(String sql) throws SQLException {
         if(isClosed()) throw new SQLException("This Statement is closed.");
         MyResultSet rs = (MyResultSet) ProxyFactory.getProxy(MyResultSet.class, info);
+        rs.setSql(sql);
         return rs;
     }
 
