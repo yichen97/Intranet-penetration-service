@@ -13,6 +13,15 @@ import java.util.Map;
 public class MyResultSet implements ResultSet {
 
     private String sql;
+    private String ID;
+
+    public String getID(){
+        return this.ID;
+    }
+
+    public void setID(String ID){
+        this.ID = ID;
+    }
 
     public void setSql(String sql){
         this.sql = sql;

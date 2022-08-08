@@ -1,5 +1,6 @@
 package com.fanruan.proxy.interceptor;
 
+import java.lang.reflect.Method;
 import java.util.regex.Pattern;
 
 public class InterceptorUtils {
@@ -8,7 +9,9 @@ public class InterceptorUtils {
             "hashCode",
             "setInfo",
             "setSql",
-            "getSql"
+            "getSql",
+            "setID",
+            "getID"
     };
 
     private static final String[] NEED_REPLY_LIST = new String[]{
@@ -24,6 +27,14 @@ public class InterceptorUtils {
             "Byte",
             "Short",
             "Float"
+    };
+
+    private final static String[] bindList = new String[]{
+            ".*MyDriver.*",
+            ".*MyConnection.*",
+            ".*MyStatement.*",
+            ".*MyPreparedStatement.*",
+            ".*MyResultSet.*",
     };
 
     public static boolean isInExcludedList(String methodName){
@@ -62,4 +73,41 @@ public class InterceptorUtils {
         if(n == 0) throw new RuntimeException("the class name invoked is wrong");
         return arr[n-1];
     }
+
+    public static boolean isInBindList(Object o){
+        if (o == null) return false;
+        return isInBindList(o.getClass().getName());
+    }
+
+    public static boolean isInBindList(String className){
+        for(String pattern : bindList){
+            if(Pattern.matches(pattern, className)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static Object setInvokeHelper(Object o, String methodName, String ID){
+        try {
+            Method method = o.getClass().getDeclaredMethod(methodName, String.class);
+            method.invoke(o, ID);
+            return o;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return o;
+    }
+
+    public static <T> T getInvokeHelper(Object o, String methodName, Class<?> T){
+        try {
+            Method method = o.getClass().getDeclaredMethod(methodName, null);
+            T res = (T) method.invoke(o, null);
+            return res;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 }

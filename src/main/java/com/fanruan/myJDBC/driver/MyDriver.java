@@ -1,15 +1,9 @@
 package com.fanruan.myJDBC.driver;
 
-import com.corundumstudio.socketio.SocketIOClient;
-
-import com.fanruan.ServerStater;
-import com.fanruan.cache.ClientCache;
 import com.fanruan.myJDBC.connection.MyConnection;
 import com.fanruan.proxy.ProxyFactory;
 import lombok.SneakyThrows;
 
-
-import javax.annotation.Resource;
 import java.sql.*;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -19,6 +13,7 @@ public class MyDriver implements Driver {
 
     static public final int DRIVER_VERSION_MAJOR = 1;
     static public final int DRIVER_VERSION_MINOR = 1;
+    private String ID;
 
     //依靠静态函数块注册驱动
     static{
@@ -27,6 +22,17 @@ public class MyDriver implements Driver {
         } catch (Exception e) {
             throw new RuntimeException("Can't register driver");
         }
+    }
+
+    // But, to tell the truth, the filed "ID" of "Driver" will never be used.
+    // These corresponding code is to make the format correct, because the getID()
+    // will be called, even if the filed is never not null.
+    public String getID(){
+        return this.ID;
+    }
+
+    public void setID(String ID){
+        this.ID = ID;
     }
 
     @SneakyThrows

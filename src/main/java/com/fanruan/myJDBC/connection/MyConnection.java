@@ -4,6 +4,7 @@ package com.fanruan.myJDBC.connection;
 import com.corundumstudio.socketio.SocketIOClient;
 import com.fanruan.ServerStater;
 import com.fanruan.myJDBC.MyDataBaseMetaData;
+import com.fanruan.myJDBC.statement.MyPreparedStatement;
 import com.fanruan.myJDBC.statement.MyStatement;
 import com.fanruan.proxy.ProxyFactory;
 
@@ -19,11 +20,21 @@ import java.util.concurrent.Executor;
 public class MyConnection implements Connection {
     protected static final Logger logger = LogManager.getLogger();
 
+    private String ID;
+
     private Properties info;
     private boolean autoCommit = true;
     SocketIOClient client;
 
     public MyConnection(){
+    }
+
+    public void setID(String ID){
+        this.ID = ID;
+    }
+
+    public String getID(){
+        return this.ID;
     }
 
     public void setInfo(Properties info){
@@ -41,7 +52,11 @@ public class MyConnection implements Connection {
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-        return null;
+        MyPreparedStatement pst = (MyPreparedStatement) ProxyFactory.getProxy(MyPreparedStatement.class, info);
+        // 将需要准备的sql 加入 properties 中, 将用以标识生成的 ResultSet
+        info.setProperty("PreparedSQL", sql);
+        pst.setInfo(info);
+        return pst;
     }
 
     @Override

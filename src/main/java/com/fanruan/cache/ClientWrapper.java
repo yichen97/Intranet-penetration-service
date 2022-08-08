@@ -16,7 +16,6 @@ import java.util.concurrent.locks.ReentrantLock;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ClientWrapper {
-        private ClientState state;
         private SocketIOClient client;
         private static Map<String, LockAndCondition> lockMap = new ConcurrentHashMap<>();
 

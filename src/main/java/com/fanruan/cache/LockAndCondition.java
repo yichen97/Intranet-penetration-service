@@ -14,6 +14,7 @@ public class LockAndCondition{
     private ReentrantLock lock;
     private Condition condition;
     private Object result;
+    private String BindingID;
 
     LockAndCondition(ReentrantLock lock, Condition condition){
         this.lock = lock;

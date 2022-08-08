@@ -49,7 +49,9 @@ public class Interceptor implements MethodInterceptor {
         if(InterceptorUtils.isInExcludedList(method.getName())){
             return methodProxy.invokeSuper(o, objects);
         }
-        // class MyDriver's arg injection will be delayed util the method was intercepted
+        // Parameters injection of class MyDriver's construction method will be delayed util the first "connect" method was intercepted
+        // Because Driver Instance is registered on the DriverManager in the static code block,
+        // in which, the parameters used to fetch socket in cache is hard to pass in.
         if(info == null){
             info = (Properties) objects[1];
         }
@@ -61,49 +63,36 @@ public class Interceptor implements MethodInterceptor {
             client = ServerStater.cache.getClient(agentID, dbName);
         }
 
-
-        logger.debug("start invoke " + method.getName());
-
+        logger.info("start invoke " + method.getName());
 
         RpcRequest rpcRequest = new RpcRequest();
         rpcRequest.setReply(false)
+                .setBinding(false)
                 .setID(Commons.getID())
                 .setServiceClass(clazz)
                 .setMethodName(method.getName())
                 .setArgs(objects)
                 .setArgTypes(getArgTypes(objects));
 
-        // 对于MyResult类的代理，需要多传一个sql参数作为agent段对应实例的表示
-        // 否则找不到应该invoke的实例
+        // Set whether the rpcResponses of this rpcRequest need to carry return value
         if(o instanceof com.fanruan.myJDBC.resultSet.MyResultSet){
-            int n = objects.length;
-            Object[] objectWithSuffix = new Object[n+1];
-
-            for(int i=0; i<n; i++){
-                objectWithSuffix[i] = objects[i];
-            }
-            String sql = ((MyResultSet) o).getSql();
-            objectWithSuffix[n] = sql;
-
-            rpcRequest.setArgs(objectWithSuffix);
-
             boolean flag = InterceptorUtils.isInReplyList(method.getName());
             if(flag) rpcRequest.setReply(true);
         }
 
-        Object res = sendAndWait(rpcRequest, agentID, dbName);
-        // res 不为空，说明该响应是回送报文的响应，应当返回响应中的数据
-        // 如果是初始类型的包装类，不能应用类型转换，可以自动拆装箱
-        if(res != null){
-            if(InterceptorUtils.isWraps(res)){
-                return res;
-            }
-            return method.getReturnType().cast(res);
+        // Some instance need to be bound one-to-one, to make sure the operator happen in service
+        // will be deliver to this specific corresponding instance.
+        if(InterceptorUtils.isInBindList(o)){
+            rpcRequest.setBinding(true);
         }
-        return methodProxy.invokeSuper(o, objects);
-    }
 
-    public Object sendAndWait(RpcRequest rpcRequest, String agentID, String dbName) throws ExecutionException, InterruptedException {
+        // IDtoInvoke is an unique ID to identify an one-to-one binding relation.
+        // It comes from rpcRequest in which the instance in the agent is created.
+        String IDtoInvoke = InterceptorUtils.getInvokeHelper(o, "getID",  String.class);
+        if(IDtoInvoke != null){
+            rpcRequest.setIDtoInvoke(IDtoInvoke);
+        }
+
         FutureTask<Object> futureTask = new FutureTask<Object>(
                 new Callable<Object>() {
                     @Override
@@ -131,8 +120,28 @@ public class Interceptor implements MethodInterceptor {
         );
         futureTask.run();
         Object res = futureTask.get();
-        return res;
+
+        // res is not null, it indicates  the response carries data.
+        // if the type of res is primitive type, An error will occur when using cast(), just return them directly.
+        // And the data carried by response will never be the instance need to be bound.
+        if(res != null){
+            if(InterceptorUtils.isWraps(res)){
+                return res;
+            }
+            return res;
+        }
+
+
+        Object returnObj = methodProxy.invokeSuper(o, objects);
+
+        // If the return instance is corresponding with another instance in agent, set the binding ID.
+        if (InterceptorUtils.isInBindList(returnObj)){
+            InterceptorUtils.setInvokeHelper(returnObj, "setID", rpcRequest.getID());
+        }
+
+        return returnObj;
     }
+
 
 
     public Class<?>[] getArgTypes(Object[] objects){

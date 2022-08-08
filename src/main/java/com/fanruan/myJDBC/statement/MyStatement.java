@@ -13,8 +13,17 @@ public class MyStatement implements Statement {
 
     private Properties info;
 
+    private String ID;
 
     public MyStatement() {}
+
+    public String getID(){
+        return this.ID;
+    }
+
+    public void setID(String ID){
+        this.ID = ID;
+    }
 
     public void setInfo(Properties info){
         this.info = info;

@@ -11,5 +11,7 @@ public class RpcResponse {
 
     private Object result;
 
+    private boolean binding;
+
     private Boolean status;
 }
