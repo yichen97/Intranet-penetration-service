@@ -13,8 +13,7 @@
 2. `Service`端通过自实现的`JDBC`驱动，进行`JDBC`操作。驱动中使用基于`CGlib`的动态代理，对`Service`端的所有`JDBC`相关驱动类进行增强，所有方法信息会被序列化传递到`Agent`执行，并有选择地将结果回送到`Service`
 
 ## 结构与流程
-
-![img](/pic/project structure.jpg)
+<img src="/pic/project structure.jpg" alt="project structure" title="project structure">
 
 如上图，对于`Service` 端来讲，`Agent`对其的代理是无感知的。在`Service`来看，只是调用了一个自定义的`JDBC`驱动进行查询。
 
