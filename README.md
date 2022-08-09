@@ -14,7 +14,7 @@
 
 ## 结构与流程
 
-![img](./pic/project structure.jpg)
+![img](/pic/project structure.jpg)
 
 如上图，对于`Service` 端来讲，`Agent`对其的代理是无感知的。在`Service`来看，只是调用了一个自定义的`JDBC`驱动进行查询。
 
