@@ -17,6 +17,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Method;
+import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -63,7 +64,7 @@ public class Interceptor implements MethodInterceptor {
             client = ServerStater.cache.getClient(agentID, dbName);
         }
 
-        logger.info("start invoke " + method.getName());
+        logger.debug("start invoke " + method.getName());
 
         RpcRequest rpcRequest = new RpcRequest();
         rpcRequest.setReply(false)
@@ -118,7 +119,7 @@ public class Interceptor implements MethodInterceptor {
                     }
                 }
         );
-        futureTask.run();
+        ServerStater.threadPool.submit(futureTask);
         Object res = futureTask.get();
 
         // res is not null, it indicates  the response carries data.

@@ -7,14 +7,12 @@ import com.corundumstudio.socketio.Transport;
 import com.fanruan.cache.ClientCache;
 import com.fanruan.cache.ClientWrapper;
 import com.fanruan.cache.LockAndCondition;
-import com.fanruan.exception.ParamException;
 import com.fanruan.pojo.message.RpcResponse;
 import com.fanruan.serializer.KryoSerializer;
 import com.fanruan.serializer.Serializer;
 import com.fanruan.utils.CodeMsg;
 import com.fanruan.utils.Commons;
 import com.fanruan.utils.GlobalExceptionHandler;
-import com.google.gson.Gson;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Properties;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -31,7 +30,7 @@ public class ServerStater{
 
     public static final Serializer serializer = new KryoSerializer();
 
-    public static final Gson gson = new Gson();
+    public static ExecutorService threadPool;
 
     public static SocketIOServer server;
 
@@ -60,7 +59,6 @@ public class ServerStater{
 
             if(agentID == null){
                 // 如果连接信息错误，发送异常信息，关闭socket
-                GlobalExceptionHandler.sendException(client, new ParamException(CodeMsg.CLIENT_ID_ERROR));
                 logger.info("连接信息错误：agentID, 连接关闭");
                 client.disconnect();
             }
@@ -71,7 +69,7 @@ public class ServerStater{
 
         });
 
-        // rpc响应
+        // rpcResponse
         nameSpace.addEventListener("RPCResponse", byte[].class, ((client, data, ackRequest) -> {
             RpcResponse rpcResponse = serializer.deserialize(data, RpcResponse.class);
             logger.debug("RPCResponse: " + (rpcResponse.getStatus() ? "success" : "fail"));
@@ -87,6 +85,10 @@ public class ServerStater{
             try {
                 lock.lock();
                 Object resultData = rpcResponse.getResult();
+                if(!rpcResponse.getStatus()){
+                    logger.error(resultData);
+                    resultData = null;
+                }
                 if(resultData != null) lac.setResult(resultData);
                 condition.signal();
             }catch (Exception e){
@@ -94,8 +96,8 @@ public class ServerStater{
             }finally {
                 lock.unlock();
             }
+            wrapper.removeLockAndCondition(rpcResponse.getID());
             logger.debug("received response message, signaled condition");
-
         }));
 
         // 处理错误事件
@@ -118,18 +120,32 @@ public class ServerStater{
         InputStreamReader inputStreamReader = new InputStreamReader(in, "UTF-8");
         props.load(inputStreamReader);
 
+        int bossCount = Integer.parseInt(props.getProperty("bossCount"));
+        String host = props.getProperty("host");
+        int port = Integer.parseInt(props.getProperty("port"));
+        int workCount = Integer.parseInt(props.getProperty("workCount"));
+        boolean allowCustomRequests = Boolean.parseBoolean(props.getProperty("allowCustomRequests"));
+        int upgradeTimeout = Integer.parseInt(props.getProperty("upgradeTimeout"));
+        int pingTimeout = Integer.parseInt(props.getProperty("pingTimeout"));
+        int pingInterval = Integer.parseInt(props.getProperty("pingInterval"));
+
         config.setSocketConfig(socketConfig);
-        config.setHostname(props.getProperty("host"));
-        config.setPort(Integer.parseInt(props.getProperty("port")));
-        config.setBossThreads(Integer.parseInt(props.getProperty("bossCount")));
-        config.setWorkerThreads(Integer.parseInt(props.getProperty("workCount")));
-        config.setAllowCustomRequests(Boolean.parseBoolean(props.getProperty("allowCustomRequests")));
-        config.setUpgradeTimeout(Integer.parseInt(props.getProperty("upgradeTimeout")));
-        config.setPingTimeout(Integer.parseInt(props.getProperty("pingTimeout")));
-        config.setPingInterval(Integer.parseInt(props.getProperty("pingInterval")));
+        config.setHostname(host);
+        config.setPort(port);
+        config.setBossThreads(bossCount);
+        config.setWorkerThreads(workCount);
+        config.setAllowCustomRequests(allowCustomRequests);
+        config.setUpgradeTimeout(upgradeTimeout);
+        config.setPingTimeout(pingTimeout);
+        config.setPingInterval(pingInterval);
         config.setTransports(Transport.WEBSOCKET);
         in.close();
 
+        threadPool = new ThreadPoolExecutor(
+                0, workCount,
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>()
+        );
         server = new SocketIOServer(config);
         cache = new ClientCache();
 
@@ -138,7 +154,6 @@ public class ServerStater{
             String dbName = Commons.getDBName(client);
             if(agentID == null){
                 // 如果连接信息错误，发送异常信息，关闭socket
-                GlobalExceptionHandler.sendException(client, new ParamException(CodeMsg.CLIENT_ID_ERROR));
                 logger.info("连接信息错误：agentID, 连接关闭");
                 client.disconnect();
             }
@@ -153,7 +168,6 @@ public class ServerStater{
 
             if(agentID == null){
                 // 如果连接信息错误，发送异常信息，关闭socket
-                GlobalExceptionHandler.sendException(client, new ParamException(CodeMsg.CLIENT_ID_ERROR));
                 logger.info("agentID: 连接关闭");
                 client.disconnect();
             }

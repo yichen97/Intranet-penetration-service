@@ -35,4 +35,8 @@ public class ClientWrapper {
                 }
                 return lac;
         }
+
+        public void removeLockAndCondition(String messageID){
+                lockMap.remove(messageID);
+        }
 }

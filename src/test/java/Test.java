@@ -27,11 +27,14 @@ public class Test {
         String agentID = "1001";
 
         new Thread(new Runnable() {
-            @SneakyThrows
             @Override
             public void run() {
                 while(serverStater.cache.getClient("1001", "mysql") == null){
-                    Thread.sleep(1000);
+                    try {
+                        Thread.sleep(1000);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
                 }
                 Properties info = new Properties();
                 info.setProperty("user", "root");
@@ -79,7 +82,7 @@ public class Test {
                     rs3 = pst2.executeQuery();
 
                     System.out.println("-----------");
-                    System.out.println("执行预查询语句1");
+                    System.out.println("执行预查询语句2");
                     while(rs3.next()) {
                         System.out.print(rs3.getInt("student_id") + "  ");
                         System.out.print(rs3.getString("student_name")+ "  ");

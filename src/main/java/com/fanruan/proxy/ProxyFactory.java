@@ -19,6 +19,7 @@ public class ProxyFactory {
         enhancer.setCallback(new Interceptor(clazz, info));
         // 创建代理类
         Object proxy = enhancer.create();
+
         return proxy;
     }
 }

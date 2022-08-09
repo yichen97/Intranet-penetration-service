@@ -35,16 +35,13 @@ public class MyDriver implements Driver {
         this.ID = ID;
     }
 
-    @SneakyThrows
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
-        String agentID = info.getProperty("agentID");
         String dbName = info.getProperty("agentDBName");
         if(dbName == null){
             dbName = url.split(":")[1];
             info.setProperty("agentDBName", dbName);
         }
-
         MyConnection myConn = (MyConnection) ProxyFactory.getProxy(MyConnection.class, info);
         myConn.setInfo(info);
         return myConn;

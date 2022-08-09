@@ -41,7 +41,7 @@
 
 在一次RPC调用流程中，`FutureTask` 异步获取返回结果，以“生产者-消费者”模型实现一次调用的同步管理。
 
-`ClientWrapper` 持有着各个命名空间上的`socket`。在这些`socket`上的通信，每次调用，会在`wrapper`中注册一个工具类:`LockAndCondition`，发出消息后，等待`socket`上出现对应的响应报文唤醒`FutureTask` 线程。实现通过锁机制，保证逻辑的正确性的效果。
+`ClientWrapper` 持有着各个命名空间上的`socket`。在这些`socket`上的通信，每次调用，会在`wrapper`中注册一个工具类:`LockAndCondition`，发出消息后，等待`socket`上出现对应的响应报文唤醒`FutureTask` 线程。通过锁机制，保证逻辑的正确性。
 
 ```java
 @Data
@@ -66,6 +66,10 @@ public class ClientWrapper {
                         lockMap.put(messageID, lac);
                 }
                 return lac;
+        }
+    
+        public void removeLockAndCondition(String messageID){
+                lockMap.remove(messageID);
         }
 }
 ```
@@ -121,3 +125,44 @@ public class LockAndCondition{
         Object res = futureTask.get();
 ```
 
+`socket`收到响应时解锁对应的线程。
+
+```java
+		// rpcResponse
+		   nameSpace.addEventListener("RPCResponse", byte[].class, ((client, data, ackRequest) -> {
+            RpcResponse rpcResponse = serializer.deserialize(data, RpcResponse.class);
+            logger.debug("RPCResponse: " + (rpcResponse.getStatus() ? "success" : "fail"));
+
+            String agentID = Commons.getAgentID(client);
+            String dbName = Commons.getDBName(client);
+            ClientWrapper wrapper = ClientCache.getClientWrapper(agentID, dbName);
+            LockAndCondition lac = wrapper.getLockAndCondition(rpcResponse.getID());
+            ReentrantLock lock = lac.getLock();
+            Condition condition = lac.getCondition();
+            // response 到达时，通知正阻塞在LockAndCondition类上的FutureTask线程
+            // 如果response 报文中包含数据，将数据取出
+            try {
+                lock.lock();
+                Object resultData = rpcResponse.getResult();
+                if(resultData != null) lac.setResult(resultData);
+                condition.signal();
+            }catch (Exception e){
+                e.printStackTrace();
+            }finally {
+                lock.unlock();
+            }
+            wrapper.removeLockAndCondition(rpcResponse.getID());
+            logger.debug("received response message, signaled condition");
+
+        }));
+```
+
+本项目的依赖版本：
+
+`Netty-socketio`与`Socket.io-client-Java`的对应关系是：
+
+| `netty-socketio` | `Java client` |
+| ---------------- | ------------- |
+| 1.7.19           | 1.0.x         |
+
+其中`Service`是使用`netty`实现的高效同步非阻塞`IO`，上文的同步机制可以很大程度上利用`socket`的并发效果。
