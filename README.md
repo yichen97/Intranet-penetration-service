@@ -2,9 +2,39 @@
 
 ## 项目功能
 
-​	为达到`Service` 从公网访问客户端所在内网中数据源的效果，通过运行在客户机上的代理程序代理`Service`的所有`JDBC`请求，并将查询结果返回给`Service`。
+​	为达到`Service` 从公网访问客户端所在内网中数据源的效果，通过运行在客户机上的代理程序代理`Service`的所有`JDBC`请求，并将查询结果返回给`Service`。实现目标，`Service`除更改使用的`JDBC`驱动外，对代理存在无感知，支持主流的包含`JDBC`支持的数据库。
 
 `Agent`地址: [`Agent`](https://github.com/yichen97/Intranet-penetration-agent)
+
+## 项目依赖
+
+`Netty-socketio`与`Socket.io-client-Java`的对应关系是：
+
+| [`netty-socketio`](https://github.com/mrniko/netty-socketio) | [`Java client`](https://github.com/socketio/socket.io-client-java) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 1.7.19                                                       | 1.0.x                                                        |
+| 暂无                                                         | [Document](https://socketio.github.io/socket.io-client-java/installation.html) |
+
+以下用`Service`指代`Socket`连接中的`socket`服务器，它也是需求查询用户内网数据源的公网服务器。
+
+用`Agent`指代``Socket`连接中的客户端，也是运行在用户`PC`上承担远程调用`JDBC`方法的代理服务。
+
+具体结构见下文项目结构图。
+
+## QUICKSTART
+
+1. 分别下载`Agent`和`Serviec`
+
+2. 修改数据库配置和对应的SQL语句
+3. 先运行`Service`中的`Test的`主函数
+
+4. 运行`Agent`中的`Test`的主函数
+
+即可在`Service`上观察到查询结果
+
+```
+目前只测试了mysql 数据库，但内置支持 mysql、 postgresql、 oracle、 sqlserver、 db2, 在 Agent 上注册驱动即可使用
+```
 
 ## 实现方案
 
@@ -19,12 +49,13 @@
 
 这得益于驱动内部方法地重写，自定义地实现类在`Agent`和`Service`中有相同的名字，但内部实现却不相同，这使得整个RPC的流程十分灵活。
 
-如在 `Driver`类的 `connect`方法中：
+## 动态代理
 
-返回的`Connection`就被替换为了动态代理增强过的`MyConnection`，实现对`Service`中调用方法的完全代理。
+动态代理是该项目中的核心，如在 `Driver`类的 `connect`方法中：返回的`Connection`就被替换为了动态代理增强过的`MyConnection`，实现对`Service`中调用的`JDBC`方法的完全代理。代理类会依靠`info`从缓存中找到命名空间（本项目中以`/dataSoure Name`来区别命名空间）对应的`socket`,将方法调用信息以`RPCReqquest`的方式序列化后发送出去。
 
 ```java
- 	@Override
+ 	// In Service Source Code
+	@Override
     public Connection connect(String url, Properties info) throws SQLException {
         String agentID = info.getProperty("agentID");
         String dbName = info.getProperty("agentDBName");
@@ -37,6 +68,43 @@
         return myConn;
     }
 ```
+
+RPC实体类包含如下信息：
+
+```java
+@Data
+@Accessors(chain = true)
+public class RpcRequest {
+    // Marks whether the method delivered need loopback data
+    private boolean reply;
+    // Marks whether the method will create an instance requeired to be cached.
+    private boolean binding;
+    private String ID;
+    private String IDtoInvoke;
+    private Class ServiceClass;
+    private String MethodName;
+    private Object[] args;
+    private Class[] argTypes;
+}
+```
+
+在`Agent`收到`Request`的时候，会按照报文要求对方法进行调用，某些创建的实例会被缓存，以便之后调用。在本项目中，这些实例的类是：
+
+```
+Drive( MyDriver ), Connection( MyConnection ), Statement( MyStatement ), PreparedStatement( MyPreparedStatement ), ResultSet( MyResult )
+```
+
+```java
+public Object invokeAsRequest(RpcRequest rpcRequest, BeanCache beanCache) {
+...
+        // The ID of the rpcRequest could be save as the ID of an instance
+        // Because one instance can only been create just once for an unique rpcRequest
+        String IDtoCache = rpcRequest.getID();
+        String IDtoInvoke = rpcRequest.getIDtoInvoke();
+...
+```
+
+## RPC调用
 
 在一次RPC调用流程中，`FutureTask` 异步获取返回结果，以“生产者-消费者”模型实现一次调用的同步管理。
 
@@ -120,7 +188,7 @@ public class LockAndCondition{
                     }
                 }
         );
-        futureTask.run();
+        ServerStater.threadPool.submit(futureTask);
         Object res = futureTask.get();
 ```
 
@@ -138,11 +206,15 @@ public class LockAndCondition{
             LockAndCondition lac = wrapper.getLockAndCondition(rpcResponse.getID());
             ReentrantLock lock = lac.getLock();
             Condition condition = lac.getCondition();
-            // response 到达时，通知正阻塞在LockAndCondition类上的FutureTask线程
-            // 如果response 报文中包含数据，将数据取出
+            // When a response is received, it notifies that the futuretask thread blocking on the lockandcondition 
+            // If the response contains data, take it out. 
             try {
                 lock.lock();
                 Object resultData = rpcResponse.getResult();
+                if(!rpcResponse.getStatus()){
+                    logger.error(resultData);
+                    resultData = null;
+                }
                 if(resultData != null) lac.setResult(resultData);
                 condition.signal();
             }catch (Exception e){
@@ -152,16 +224,57 @@ public class LockAndCondition{
             }
             wrapper.removeLockAndCondition(rpcResponse.getID());
             logger.debug("received response message, signaled condition");
-
         }));
 ```
 
-本项目的依赖版本：
+`Service`是使用`netty`实现的高效同步非阻塞`IO`，上文的同步机制可以很大程度上利用`socket`的并发效果。
 
-`Netty-socketio`与`Socket.io-client-Java`的对应关系是：
+## 绑定实例
 
-| `netty-socketio` | `Java client` |
-| ---------------- | ------------- |
-| 1.7.19           | 1.0.x         |
+确定`Agent`上缓存实例与`Service`端实例的一一对应关系是很必要，不然程序在反射调用方法时会产生问题。
 
-其中`Service`是使用`netty`实现的高效同步非阻塞`IO`，上文的同步机制可以很大程度上利用`socket`的并发效果。
+例如，对于`createStatement()`方法必须由上一步生成的`Connection`类进行调用。为了达到这一点，这些`Service`端实例必须和`Agent`端具有相同的ID。
+
+考虑到在进行`RPC`调用回调的时候，利用时间和随机数生成了一个唯一`ID`。
+
+```java
+	public static String getID(){
+        return getTimeInMillis() + getRandom();
+    }
+
+    public static String getTimeInMillis() {
+        long timeInMillis = Calendar.getInstance().getTimeInMillis();
+        return timeInMillis+"";
+    }
+
+    public static String getRandom() {
+        Random random = new Random();
+        int nextInt = random.nextInt(9000000);
+        nextInt=nextInt+1000000;
+        String str=nextInt+"";
+        return str;
+    }
+```
+
+而`Agent`端的缓存实例是由某次调用产生的，所以只需将该次调用的`RPC`报文`ID`标记在实例上，并在收到`RPC`响应时为需要绑定的类型打上同样的标记即可。这样`Agent`方面，由于存储的实例都有了唯一的`ID`作为键，大大简化了缓存系统的复杂性。
+
+标记实现：
+
+```java
+@Override
+public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy) throws Throwable {		...
+		
+     Object returnObj = methodProxy.invokeSuper(o, objects);
+
+     // If the return instance is corresponding with another instance in agent, set the binding ID.
+     if (InterceptorUtils.isInBindList(returnObj)){
+     	InterceptorUtils.setInvokeHelper(returnObj, "setID", rpcRequest.getID());
+     }
+```
+
+## 项目参考
+
+[nuzzle: A Simple RPC Project](https://github.com/sakiila/nuzzle)
+
+[CSV JDBC Driver](https://github.com/peterborkuti/csv-jdbc-driver)
+

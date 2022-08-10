@@ -80,8 +80,8 @@ public class ServerStater{
             LockAndCondition lac = wrapper.getLockAndCondition(rpcResponse.getID());
             ReentrantLock lock = lac.getLock();
             Condition condition = lac.getCondition();
-            // response 到达时，通知正阻塞在LockAndCondition类上的FutureTask线程
-            // 如果response 报文中包含数据，将数据取出
+            // When a response is received, it notifies that the FutureTask thread blocking on the LockAndCondition
+            // If the response contains data, take it out.
             try {
                 lock.lock();
                 Object resultData = rpcResponse.getResult();
