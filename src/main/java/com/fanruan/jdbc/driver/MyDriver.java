@@ -1,14 +1,16 @@
-package com.fanruan.myJDBC.driver;
+package com.fanruan.jdbc.driver;
 
-import com.fanruan.myJDBC.connection.MyConnection;
+import com.fanruan.jdbc.connection.MyConnection;
 import com.fanruan.proxy.ProxyFactory;
-import lombok.SneakyThrows;
 
 import java.sql.*;
 import java.util.Properties;
 import java.util.logging.Logger;
 
 
+/**
+ * @author Yichen Dai
+ */
 public class MyDriver implements Driver {
 
     static public final int DRIVER_VERSION_MAJOR = 1;
@@ -24,9 +26,12 @@ public class MyDriver implements Driver {
         }
     }
 
-    // But, to tell the truth, the filed "ID" of "Driver" will never be used.
-    // These corresponding code is to make the format correct, because the getID()
-    // will be called, even if the filed is never not null.
+
+    /**
+     *   These corresponding code is to make the format correct, because the getID()
+     *   will be called, even if the filed is never not null.
+     * @return ID
+     */
     public String getID(){
         return this.ID;
     }
@@ -36,7 +41,7 @@ public class MyDriver implements Driver {
     }
 
     @Override
-    public Connection connect(String url, Properties info) throws SQLException {
+    public Connection connect(String url, Properties info){
         String dbName = info.getProperty("agentDBName");
         if(dbName == null){
             dbName = url.split(":")[1];
@@ -47,15 +52,13 @@ public class MyDriver implements Driver {
         return myConn;
     }
 
-    // URL的正确性交给Agent验证
-    // 后续需要完善，通过Agent返回的错误消息进行更新
     @Override
-    public boolean acceptsURL(String url) throws SQLException {
+    public boolean acceptsURL(String url){
         return true;
     }
 
     @Override
-    public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
+    public DriverPropertyInfo[] getPropertyInfo(String url, Properties info){
         return new DriverPropertyInfo[0];
     }
 

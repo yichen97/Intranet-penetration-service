@@ -6,10 +6,7 @@ import com.fanruan.ServerStater;
 import com.fanruan.cache.ClientCache;
 import com.fanruan.cache.ClientWrapper;
 import com.fanruan.cache.LockAndCondition;
-import com.fanruan.myJDBC.resultSet.MyResultSet;
 import com.fanruan.pojo.message.RpcRequest;
-import com.fanruan.pojo.message.RpcResponse;
-import com.fanruan.serializer.Serializer;
 import com.fanruan.utils.Commons;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
@@ -17,32 +14,28 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Method;
-import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.regex.Pattern;
 
 /**
- * cglib 的代理增强方法
- * 起到通知 agent 调用相同方法的作用
- * 如在 service 进行查询时，也在 agent预先生成 connection 和 statement
+ * @author Yichen Dai
+ * cglib enhenced method to relize RPC
+ * For example, when service execute query operation,
+ * the RPC request will send to notify agent to do the same things,
+ * like create connection and statement
  */
 public class Interceptor implements MethodInterceptor {
     protected static final Logger logger = LogManager.getLogger();
 
-    private Class clazz;
-    private Serializer serializer;
+    private Class<?> clazz;
     private SocketIOClient client;
     private Properties info;
 
     public Interceptor(Class<?> clazz, Properties info){
         this.clazz = clazz;
         this.info = info;
-        serializer = ServerStater.serializer;
     }
 
     @Override
@@ -56,12 +49,10 @@ public class Interceptor implements MethodInterceptor {
         if(info == null){
             info = (Properties) objects[1];
         }
-
-        String agentID = info.getProperty("agentID");
+        String agentId = info.getProperty("agentID");
         String dbName = info.getProperty("agentDBName");
-
         if(client == null){
-            client = ServerStater.cache.getClient(agentID, dbName);
+            client = ClientCache.getClient(agentId, dbName);
         }
 
         logger.debug("start invoke " + method.getName());
@@ -76,9 +67,11 @@ public class Interceptor implements MethodInterceptor {
                 .setArgTypes(getArgTypes(objects));
 
         // Set whether the rpcResponses of this rpcRequest need to carry return value
-        if(o instanceof com.fanruan.myJDBC.resultSet.MyResultSet){
+        if(o instanceof com.fanruan.jdbc.resultset.MyResultSet){
             boolean flag = InterceptorUtils.isInReplyList(method.getName());
-            if(flag) rpcRequest.setReply(true);
+            if(flag) {
+                rpcRequest.setReply(true);
+            }
         }
 
         // Some instance need to be bound one-to-one, to make sure the operator happen in service
@@ -89,34 +82,31 @@ public class Interceptor implements MethodInterceptor {
 
         // IDtoInvoke is an unique ID to identify an one-to-one binding relation.
         // It comes from rpcRequest in which the instance in the agent is created.
-        String IDtoInvoke = InterceptorUtils.getInvokeHelper(o, "getID",  String.class);
-        if(IDtoInvoke != null){
-            rpcRequest.setIDtoInvoke(IDtoInvoke);
+        String idToInvoke = InterceptorUtils.getInvokeHelper(o, "getID",  String.class);
+        if(idToInvoke != null){
+            rpcRequest.setIDToInvoke(idToInvoke);
         }
 
-        FutureTask<Object> futureTask = new FutureTask<Object>(
-                new Callable<Object>() {
-                    @Override
-                    public Object call() throws Exception {
-                        Object res = null;
-                        ClientWrapper wrapper = ClientCache.getClientWrapper(agentID, dbName);
-                        LockAndCondition lac = wrapper.getLockAndCondition(rpcRequest.getID());
-                        ReentrantLock lock = lac.getLock();
-                        Condition condition = lac.getCondition();
-                        try{
-                            byte[] bytes = ServerStater.serializer.serialize(rpcRequest);
-                            lock.lock();
-                            client.sendEvent("RPCRequest", bytes);
-                            condition.await();
-                            // get res from RPC response data
-                            res = lac.getResult();
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }finally {
-                            lock.unlock();
-                        }
-                        return res;
+        FutureTask<Object> futureTask = new FutureTask<>(
+                () -> {
+                    Object res = null;
+                    ClientWrapper wrapper = ClientCache.getClientWrapper(agentId, dbName);
+                    LockAndCondition lac = wrapper.getLockAndCondition(rpcRequest.getID());
+                    ReentrantLock lock = lac.getLock();
+                    Condition condition = lac.getCondition();
+                    lock.lock();
+                    try{
+                        byte[] bytes = ServerStater.SERIALIZER.serialize(rpcRequest);
+                        client.sendEvent("RPCRequest", bytes);
+                        condition.await();
+                        // get res from RPC response data
+                        res = lac.getResult();
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }finally {
+                        lock.unlock();
                     }
+                    return res;
                 }
         );
         ServerStater.threadPool.submit(futureTask);

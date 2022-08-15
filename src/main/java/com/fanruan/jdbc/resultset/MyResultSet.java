@@ -1,4 +1,4 @@
-package com.fanruan.myJDBC.resultSet;
+package com.fanruan.jdbc.resultset;
 
 
 import java.io.InputStream;
@@ -10,6 +10,9 @@ import java.util.Calendar;
 import java.util.Map;
 
 
+/**
+ * @author Yichen Dai
+ */
 public class MyResultSet implements ResultSet {
 
     private String sql;
@@ -38,7 +41,6 @@ public class MyResultSet implements ResultSet {
 
     @Override
     public void close() throws SQLException {
-
     }
 
     @Override

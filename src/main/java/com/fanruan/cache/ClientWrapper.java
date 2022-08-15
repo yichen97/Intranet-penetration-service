@@ -1,7 +1,6 @@
 package com.fanruan.cache;
 
 import com.corundumstudio.socketio.SocketIOClient;
-import com.fanruan.pojo.message.RpcRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,6 +11,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * @author Yichen Dai
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -21,7 +23,9 @@ public class ClientWrapper {
 
 
         public SocketIOClient getClient(){
-                if(client == null) throw new RuntimeException("no such client");
+                if(client == null) {
+                        throw new RuntimeException("no such client");
+                }
                 return client;
         }
 

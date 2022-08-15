@@ -9,12 +9,11 @@ import java.util.Random;
 public class Commons {
 
     static public String getAgentID(SocketIOClient client){
-        String agentID = client.getHandshakeData().getSingleUrlParam("agentID");
-        return agentID;
+        return client.getHandshakeData().getSingleUrlParam("agentID");
     }
 
     static public String getDBName(SocketIOClient client){
-        // spaceNamed 的格式为 "/" + "dbName"
+        // the format of spaceNamed  "/" + "dbName"
         // default name space named as "/"
         String spaceName = client.getNamespace().getName();
         String dbName;
@@ -38,9 +37,8 @@ public class Commons {
     public static String getRandom() {
         Random random = new Random();
         int nextInt = random.nextInt(9000000);
-        nextInt=nextInt+1000000;
-        String str=nextInt+"";
-        return str;
+        nextInt = nextInt + 1000000;
+        return nextInt+"";
     }
 
 }

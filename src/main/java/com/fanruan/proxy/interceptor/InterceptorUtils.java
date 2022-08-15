@@ -3,6 +3,9 @@ package com.fanruan.proxy.interceptor;
 import java.lang.reflect.Method;
 import java.util.regex.Pattern;
 
+/**
+ * @author Yichen Dai
+ */
 public class InterceptorUtils {
     private static final String[] EXCLUDED_METHOD_LIST = new String[]{
             "toString",
@@ -29,7 +32,7 @@ public class InterceptorUtils {
             "Float"
     };
 
-    private final static String[] bindList = new String[]{
+    private final static String[] BIND_LIST = new String[]{
             ".*MyDriver.*",
             ".*MyConnection.*",
             ".*MyStatement.*",
@@ -70,17 +73,21 @@ public class InterceptorUtils {
     public static String getClassName(String fullyQualifiedClassName){
         String[] arr = fullyQualifiedClassName.split("\\.");
         int n = arr.length;
-        if(n == 0) throw new RuntimeException("the class name invoked is wrong");
+        if(n == 0) {
+            throw new RuntimeException("the class name invoked is wrong");
+        }
         return arr[n-1];
     }
 
     public static boolean isInBindList(Object o){
-        if (o == null) return false;
+        if (o == null) {
+            return false;
+        }
         return isInBindList(o.getClass().getName());
     }
 
     public static boolean isInBindList(String className){
-        for(String pattern : bindList){
+        for(String pattern : BIND_LIST){
             if(Pattern.matches(pattern, className)){
                 return true;
             }
@@ -88,21 +95,19 @@ public class InterceptorUtils {
         return false;
     }
 
-    public static Object setInvokeHelper(Object o, String methodName, String ID){
+    public static void setInvokeHelper(Object o, String methodName, String ID){
         try {
             Method method = o.getClass().getDeclaredMethod(methodName, String.class);
             method.invoke(o, ID);
-            return o;
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return o;
     }
 
     public static <T> T getInvokeHelper(Object o, String methodName, Class<?> T){
         try {
-            Method method = o.getClass().getDeclaredMethod(methodName, null);
-            T res = (T) method.invoke(o, null);
+            Method method = o.getClass().getDeclaredMethod(methodName);
+            T res = (T) method.invoke(o);
             return res;
         } catch (Exception e) {
             e.printStackTrace();

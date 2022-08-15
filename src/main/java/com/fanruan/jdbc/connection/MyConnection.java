@@ -1,15 +1,12 @@
-package com.fanruan.myJDBC.connection;
+package com.fanruan.jdbc.connection;
 
 
 import com.corundumstudio.socketio.SocketIOClient;
-import com.fanruan.ServerStater;
-import com.fanruan.myJDBC.MyDataBaseMetaData;
-import com.fanruan.myJDBC.statement.MyPreparedStatement;
-import com.fanruan.myJDBC.statement.MyStatement;
+import com.fanruan.cache.ClientCache;
+import com.fanruan.jdbc.MyDataBaseMetaData;
+import com.fanruan.jdbc.statement.MyPreparedStatement;
+import com.fanruan.jdbc.statement.MyStatement;
 import com.fanruan.proxy.ProxyFactory;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 
 import java.sql.*;
@@ -17,9 +14,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
+/**
+ * @author Yichen Dai
+ */
 public class MyConnection implements Connection {
-    protected static final Logger logger = LogManager.getLogger();
-
     private String ID;
 
     private Properties info;
@@ -39,12 +37,12 @@ public class MyConnection implements Connection {
 
     public void setInfo(Properties info){
         this.info = info;
-        client = ServerStater.cache.getClient(info.getProperty("agentID"), info.getProperty("agentDBName"));
+        client = ClientCache.getClient(info.getProperty("agentID"), info.getProperty("agentDBName"));
     }
 
 
     @Override
-    public Statement createStatement() throws SQLException {
+    public Statement createStatement(){
         MyStatement st = (MyStatement) ProxyFactory.getProxy(MyStatement.class, info);
         st.setInfo(info);
         return st;
@@ -69,7 +67,6 @@ public class MyConnection implements Connection {
         return sql;
     }
 
-    // 事务支持，自动提交
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
         this.autoCommit = autoCommit;
@@ -100,7 +97,6 @@ public class MyConnection implements Connection {
         return client.isChannelOpen();
     }
 
-    // 返回元数据信息，通过自己实现的MyDatabaseMetaData 完成部分
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
         return new MyDataBaseMetaData();

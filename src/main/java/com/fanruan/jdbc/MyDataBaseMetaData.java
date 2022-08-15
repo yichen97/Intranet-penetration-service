@@ -1,7 +1,7 @@
-package com.fanruan.myJDBC;
+package com.fanruan.jdbc;
 
 
-import com.fanruan.myJDBC.driver.MyDriver;
+import com.fanruan.jdbc.driver.MyDriver;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
